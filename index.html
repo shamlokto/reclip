@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReClip — Self-Hosted Media Downloader</title>
+  <meta name="description" content="Download videos and audio from YouTube, TikTok, Instagram, Twitter/X and 1000+ more. Lightweight, self-hosted, no tracking.">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Favicon (inline SVG) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23e85d2a'/><polygon points='12,9 24,16 12,23' fill='white'/></svg>">
+
+  <style>
+    /* ─── Design Tokens ─── */
+    :root {
+      --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+      --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+      --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+      --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+      --text-xl: clamp(1.5rem, 1.2rem + 1.25vw, 2.25rem);
+      --text-2xl: clamp(2rem, 1.2rem + 2.5vw, 3.5rem);
+      --text-hero: clamp(3.2rem, 1rem + 7vw, 7.5rem);
+
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-5: 1.25rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+      --space-10: 2.5rem;
+      --space-12: 3rem;
+      --space-16: 4rem;
+      --space-20: 5rem;
+      --space-24: 6rem;
+
+      --radius-sm: 0.375rem;
+      --radius-md: 0.625rem;
+      --radius-lg: 0.875rem;
+      --radius-xl: 1.125rem;
+      --radius-full: 9999px;
+
+      --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ─── Light Mode ─── */
+    :root, [data-theme="light"] {
+      --bg: #f4f1eb;
+      --surface: #faf8f4;
+      --surface-2: #ffffff;
+      --border: #e2ded6;
+      --divider: #d8d4cc;
+      --text: #3a3a38;
+      --text-muted: #9c9889;
+      --text-faint: #c4c0b8;
+      --accent: #e85d2a;
+      --accent-hover: #d04e1f;
+      --accent-bg: rgba(232, 93, 42, 0.07);
+      --success: #2d8a4e;
+      --shadow-sm: 0 1px 3px rgba(40,38,32,0.06);
+      --shadow-md: 0 4px 16px rgba(40,38,32,0.09);
+      --shadow-lg: 0 12px 40px rgba(40,38,32,0.13);
+      --noise-opacity: 0.025;
+    }
+
+    /* ─── Dark Mode ─── */
+    [data-theme="dark"] {
+      --bg: #171614;
+      --surface: #1e1d1b;
+      --surface-2: #242321;
+      --border: #363432;
+      --divider: #2c2b29;
+      --text: #d4d2ce;
+      --text-muted: #7a7876;
+      --text-faint: #52504e;
+      --accent: #f07040;
+      --accent-hover: #e86030;
+      --accent-bg: rgba(240, 112, 64, 0.1);
+      --success: #4daa6e;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.25);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.35);
+      --shadow-lg: 0 12px 40px rgba(0,0,0,0.45);
+      --noise-opacity: 0.04;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme]) {
+        --bg: #171614;
+        --surface: #1e1d1b;
+        --surface-2: #242321;
+        --border: #363432;
+        --divider: #2c2b29;
+        --text: #d4d2ce;
+        --text-muted: #7a7876;
+        --text-faint: #52504e;
+        --accent: #f07040;
+        --accent-hover: #e86030;
+        --accent-bg: rgba(240, 112, 64, 0.1);
+        --success: #4daa6e;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.25);
+        --shadow-md: 0 4px 16px rgba(0,0,0,0.35);
+        --shadow-lg: 0 12px 40px rgba(0,0,0,0.45);
+        --noise-opacity: 0.04;
+      }
+    }
+
+    /* ─── Base Reset ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      scroll-behavior: smooth;
+      scroll-padding-top: var(--space-16);
+    }
+    body {
+      font-family: 'DM Mono', ui-monospace, monospace;
+      font-size: var(--text-base);
+      line-height: 1.65;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100dvh;
+      overflow-x: hidden;
+      transition: background var(--transition), color var(--transition);
+    }
+    img, video, canvas, svg { display: block; max-width: 100%; height: auto; }
+    button { cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
+    a { color: inherit; text-decoration: none; }
+    h1,h2,h3,h4 { text-wrap: balance; line-height: 1.1; }
+    p, li { text-wrap: pretty; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius-sm); }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+
+    /* ─── Grain overlay ─── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      opacity: var(--noise-opacity);
+      pointer-events: none;
+      z-index: 9999;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      background-size: 128px;
+    }
+
+    /* ─── Layout ─── */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 var(--space-6);
+    }
+    .container--narrow {
+      max-width: 660px;
+      margin: 0 auto;
+      padding: 0 var(--space-6);
+    }
+
+    /* ─── Nav ─── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in oklab, var(--bg) 85%, transparent);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 var(--space-6);
+    }
+    .nav-logo {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: var(--text-lg);
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .nav-logo em { font-style: italic; color: var(--accent); }
+    .nav-right { display: flex; align-items: center; gap: var(--space-4); }
+    .nav-link {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      transition: color var(--transition);
+    }
+    .nav-link:hover { color: var(--text); }
+
+    .theme-toggle {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      transition: color var(--transition), background var(--transition);
+    }
+    .theme-toggle:hover { color: var(--text); background: var(--border); }
+
+    /* ─── Hero ─── */
+    .hero {
+      padding: clamp(var(--space-16), 10vw, var(--space-24)) 0 clamp(var(--space-12), 8vw, var(--space-20));
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-eyebrow {
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: var(--space-5);
+    }
+    .hero-title {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: var(--text-hero);
+      font-weight: 400;
+      letter-spacing: -0.035em;
+      line-height: 0.95;
+      color: var(--text);
+      margin-bottom: var(--space-8);
+    }
+    .hero-title em { font-style: italic; color: var(--accent); }
+    .hero-desc {
+      font-size: var(--text-base);
+      color: var(--text-muted);
+      max-width: 52ch;
+      line-height: 1.7;
+      margin-bottom: var(--space-10);
+    }
+    .hero-actions {
+      display: flex;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-6);
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+    }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    .btn-primary:active { transform: translateY(0); box-shadow: none; }
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-5);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: border-color var(--transition), color var(--transition), background var(--transition);
+    }
+    .btn-ghost:hover { border-color: var(--text-muted); color: var(--text); background: var(--accent-bg); }
+
+    /* ─── UI Preview ─── */
+    .preview-section {
+      padding: clamp(var(--space-12), 7vw, var(--space-20)) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-label {
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: var(--space-4);
+    }
+    .section-title {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: var(--text-2xl);
+      font-weight: 400;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      margin-bottom: var(--space-5);
+    }
+    .section-title em { font-style: italic; color: var(--accent); }
+    .section-desc {
+      font-size: var(--text-base);
+      color: var(--text-muted);
+      max-width: 52ch;
+      line-height: 1.7;
+      margin-bottom: var(--space-10);
+    }
+
+    /* Mock App UI */
+    .app-mock {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      padding: var(--space-10) var(--space-8);
+      position: relative;
+      overflow: hidden;
+    }
+    .app-mock::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), color-mix(in oklab, var(--accent) 40%, transparent));
+    }
+    .mock-brand {
+      margin-bottom: var(--space-8);
+    }
+    .mock-brand h2 {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 400;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+    .mock-brand h2 em { font-style: italic; color: var(--accent); }
+    .mock-brand p {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: var(--space-1);
+    }
+
+    .mock-input {
+      width: 100%;
+      padding: var(--space-4) var(--space-5);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+      color: var(--text-muted);
+      font-family: 'DM Mono', monospace;
+      font-size: var(--text-sm);
+      margin-bottom: var(--space-2);
+      resize: none;
+      min-height: 52px;
+    }
+    .mock-hint {
+      font-size: var(--text-xs);
+      color: var(--text-faint);
+      margin-bottom: var(--space-5);
+    }
+    .mock-controls {
+      display: flex;
+      gap: var(--space-3);
+      margin-bottom: var(--space-8);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .mock-pill-group {
+      display: flex;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--surface-2);
+    }
+    .mock-pill {
+      padding: var(--space-2) var(--space-5);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .mock-pill.active { background: var(--text); color: var(--bg); }
+    .mock-fetch-btn {
+      flex: 1;
+      padding: var(--space-2) var(--space-5);
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Mock cards */
+    .mock-cards { display: flex; flex-direction: column; gap: var(--space-3); }
+    .mock-card {
+      display: flex;
+      gap: var(--space-4);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+      padding: var(--space-4);
+      animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .mock-card:nth-child(2) { animation-delay: 0.08s; }
+    .mock-card:nth-child(3) { animation-delay: 0.16s; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .mock-thumb {
+      width: 110px;
+      min-width: 110px;
+      height: 72px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      flex-shrink: 0;
+      background: var(--border);
+      position: relative;
+    }
+    .mock-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .mock-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--space-1); }
+    .mock-card-title {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: var(--text-base);
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mock-card-meta {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .mock-card-actions { display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-2); flex-wrap: wrap; }
+    .mock-dl-btn {
+      padding: var(--space-1) var(--space-4);
+      border-radius: var(--radius-sm);
+      background: var(--text);
+      color: var(--bg);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .mock-dl-btn.done { background: var(--success); color: #fff; }
+    .mock-q-chip {
+      padding: var(--space-1) var(--space-3);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .mock-q-chip.active { border-color: var(--text); color: var(--text); }
+
+    /* ─── Features grid ─── */
+    .features-section {
+      padding: clamp(var(--space-12), 7vw, var(--space-20)) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: var(--space-4);
+      margin-top: var(--space-10);
+    }
+    .feature-card {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      background: var(--surface);
+      transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+    }
+    .feature-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--accent-bg);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: var(--space-4);
+    }
+    .feature-name {
+      font-size: var(--text-base);
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: var(--space-2);
+    }
+    .feature-desc {
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ─── Supported sites ─── */
+    .sites-section {
+      padding: clamp(var(--space-12), 7vw, var(--space-20)) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .sites-track-wrap {
+      overflow: hidden;
+      position: relative;
+      margin-top: var(--space-8);
+    }
+    .sites-track-wrap::before,
+    .sites-track-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 80px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .sites-track-wrap::before {
+      left: 0;
+      background: linear-gradient(to right, var(--bg), transparent);
+    }
+    .sites-track-wrap::after {
+      right: 0;
+      background: linear-gradient(to left, var(--bg), transparent);
+    }
+    .sites-track {
+      display: flex;
+      gap: var(--space-3);
+      animation: marquee 28s linear infinite;
+      width: max-content;
+    }
+    .sites-track:hover { animation-play-state: paused; }
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .site-pill {
+      padding: var(--space-2) var(--space-4);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      background: var(--surface);
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ─── Install section ─── */
+    .install-section {
+      padding: clamp(var(--space-12), 7vw, var(--space-20)) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .install-tabs {
+      display: flex;
+      gap: var(--space-1);
+      border-bottom: 1.5px solid var(--border);
+      margin-bottom: var(--space-6);
+      overflow-x: auto;
+    }
+    .install-tab {
+      padding: var(--space-2) var(--space-5);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: color var(--transition), border-color var(--transition);
+    }
+    .install-tab.active { color: var(--accent); border-color: var(--accent); }
+    .install-tab:hover:not(.active) { color: var(--text); }
+    .install-pane { display: none; }
+    .install-pane.active { display: block; }
+    .code-block {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5) var(--space-6);
+      font-size: var(--text-sm);
+      color: var(--text);
+      overflow-x: auto;
+      position: relative;
+    }
+    .code-block pre { white-space: pre; }
+    .code-line { display: block; line-height: 1.8; }
+    .code-comment { color: var(--text-muted); }
+    .code-cmd { color: var(--text); }
+    .copy-btn {
+      position: absolute;
+      top: var(--space-3);
+      right: var(--space-3);
+      padding: var(--space-1) var(--space-3);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--surface-2);
+      transition: color var(--transition), border-color var(--transition);
+    }
+    .copy-btn:hover { color: var(--text); border-color: var(--text-muted); }
+    .copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+    .install-step {
+      display: flex;
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+      align-items: flex-start;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+    .step-body {}
+    .step-label {
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: var(--space-2);
+    }
+    .step-desc {
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: var(--space-3);
+    }
+
+    /* ─── Stack section ─── */
+    .stack-section {
+      padding: clamp(var(--space-12), 7vw, var(--space-20)) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: var(--space-3);
+      margin-top: var(--space-8);
+    }
+    .stack-item {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4) var(--space-5);
+      background: var(--surface);
+    }
+    .stack-role {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: var(--space-1);
+    }
+    .stack-name {
+      font-size: var(--text-base);
+      color: var(--text);
+      font-weight: 500;
+    }
+    .stack-detail {
+      font-size: var(--text-xs);
+      color: var(--text-faint);
+      margin-top: var(--space-1);
+    }
+
+    /* ─── CTA ─── */
+    .cta-section {
+      padding: clamp(var(--space-16), 10vw, var(--space-24)) 0;
+    }
+    .cta-inner {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: clamp(var(--space-10), 6vw, var(--space-16));
+      background: var(--surface);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-inner::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, var(--accent-bg) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-title {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: var(--text-2xl);
+      font-weight: 400;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      margin-bottom: var(--space-4);
+    }
+    .cta-title em { font-style: italic; color: var(--accent); }
+    .cta-desc {
+      font-size: var(--text-base);
+      color: var(--text-muted);
+      max-width: 44ch;
+      margin: 0 auto var(--space-8);
+      line-height: 1.7;
+    }
+    .cta-actions { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; }
+
+    /* ─── Footer ─── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: var(--space-8) 0;
+    }
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-4);
+    }
+    .footer-logo {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: var(--text-lg);
+      letter-spacing: -0.02em;
+    }
+    .footer-logo em { font-style: italic; color: var(--accent); }
+    .footer-links {
+      display: flex;
+      gap: var(--space-6);
+    }
+    .footer-links a {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      transition: color var(--transition);
+    }
+    .footer-links a:hover { color: var(--text); }
+    .footer-copy {
+      font-size: var(--text-xs);
+      color: var(--text-faint);
+      width: 100%;
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 560px) {
+      .mock-thumb { width: 80px; min-width: 80px; height: 56px; }
+      .mock-card { flex-direction: column; gap: var(--space-3); }
+      .mock-thumb { width: 100%; min-width: unset; height: 140px; }
+      .hero-actions { flex-direction: column; align-items: flex-start; }
+      .footer-inner { flex-direction: column; }
+      .footer-links { flex-wrap: wrap; gap: var(--space-4); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Nav ─── -->
+  <nav aria-label="Main navigation">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">Re<em>Clip</em></a>
+      <div class="nav-right">
+        <a href="#install" class="nav-link">Install</a>
+        <a href="https://github.com/averygan/reclip" target="_blank" rel="noopener" class="nav-link">GitHub</a>
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ─── Hero ─── -->
+  <header class="hero">
+    <div class="container--narrow">
+      <p class="hero-eyebrow">Open Source · Self-Hosted · Free</p>
+      <h1 class="hero-title">Re<em>Clip</em></h1>
+      <p class="hero-desc">
+        A lightweight, privacy-first media downloader with a clean web UI. Paste any video URL, pick MP4 or MP3, and save — no accounts, no tracking, no limits.
+      </p>
+      <div class="hero-actions">
+        <a href="#install" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Get Started
+        </a>
+        <a href="https://github.com/averygan/reclip" target="_blank" rel="noopener" class="btn-ghost">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.57v-2.01c-3.34.73-4.04-1.61-4.04-1.61-.54-1.38-1.33-1.75-1.33-1.75-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02.005 2.04.138 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.69.82.57C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          View Source
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─── UI Preview ─── -->
+  <section class="preview-section" id="preview">
+    <div class="container">
+      <p class="section-label">Live Preview</p>
+      <h2 class="section-title">Clean by <em>design</em></h2>
+      <p class="section-desc">The same interface you get when you self-host — no ads, no pop-ups, nothing extra.</p>
+
+      <!-- Mock App -->
+      <div class="app-mock">
+        <div class="mock-brand">
+          <h2>Re<em>Clip</em></h2>
+          <p>Free media downloader</p>
+        </div>
+
+        <textarea class="mock-input" readonly placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"></textarea>
+        <p class="mock-hint">Multiple links? Separate with spaces, commas, or newlines.</p>
+
+        <div class="mock-controls">
+          <div class="mock-pill-group">
+            <span class="mock-pill active">MP4</span>
+            <span class="mock-pill">MP3</span>
+          </div>
+          <span class="mock-fetch-btn" style="flex:1;display:flex;align-items:center;justify-content:center;">Fetch</span>
+        </div>
+
+        <div class="mock-cards">
+          <!-- Card 1 -->
+          <div class="mock-card">
+            <div class="mock-thumb" style="background: linear-gradient(135deg, #e85d2a22 0%, #3a3a3822 100%);">
+              <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--accent)" opacity="0.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </div>
+            </div>
+            <div class="mock-card-body">
+              <div class="mock-card-title">Never Gonna Give You Up</div>
+              <div class="mock-card-meta">Rick Astley · 3:32</div>
+              <div class="mock-card-actions">
+                <span class="mock-dl-btn">Download</span>
+                <span class="mock-q-chip active">1080p</span>
+                <span class="mock-q-chip">720p</span>
+                <span class="mock-q-chip">480p</span>
+              </div>
+            </div>
+          </div>
+          <!-- Card 2 -->
+          <div class="mock-card">
+            <div class="mock-thumb" style="background: linear-gradient(135deg, #2d8a4e22 0%, #3a3a3822 100%);">
+              <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" opacity="0.5" stroke-width="2"><circle cx="9" cy="18" r="3"/><circle cx="21" cy="16" r="3"/><polyline points="9 9 9 18"/><path d="M9 9h10a2 2 0 0 1 2 2v4"/></svg>
+              </div>
+            </div>
+            <div class="mock-card-body">
+              <div class="mock-card-title">Lofi Hip Hop Mix</div>
+              <div class="mock-card-meta">ChilledCow · 1:02:14</div>
+              <div class="mock-card-actions">
+                <span class="mock-dl-btn done">Saved</span>
+                <span style="font-size:var(--text-xs);color:var(--success);">lofi-hip-hop.mp3</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Features ─── -->
+  <section class="features-section" id="features">
+    <div class="container">
+      <p class="section-label">Why ReClip</p>
+      <h2 class="section-title">Everything you need, <em>nothing you don't</em></h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <div class="feature-name">1000+ Sites</div>
+          <div class="feature-desc">Powered by yt-dlp. YouTube, TikTok, Instagram, Twitter/X, Reddit, Vimeo, Twitch — and hundreds more.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          </div>
+          <div class="feature-name">Self-Hosted</div>
+          <div class="feature-desc">Runs on your own machine. No data leaves your network. No third-party services. No telemetry.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div class="feature-name">Bulk Downloads</div>
+          <div class="feature-desc">Paste multiple URLs at once — separated by spaces, commas, or newlines. Auto-deduplication included.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          </div>
+          <div class="feature-name">MP4 + MP3</div>
+          <div class="feature-desc">Download as video (MP4) with quality/resolution picker, or extract audio directly to MP3.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div class="feature-name">No Build Step</div>
+          <div class="feature-desc">Single-file Python backend (~150 lines). One HTML template. Zero npm, zero bundlers, zero config.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          </div>
+          <div class="feature-name">Docker Ready</div>
+          <div class="feature-desc">Included Dockerfile for one-command containerised deployment on any server or NAS.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Supported Sites Marquee ─── -->
+  <section class="sites-section">
+    <div class="container">
+      <p class="section-label">Supported Platforms</p>
+      <h2 class="section-title">Download from <em>anywhere</em></h2>
+    </div>
+    <div class="sites-track-wrap" style="margin-top: var(--space-8);">
+      <div class="sites-track">
+        <!-- First set -->
+        <span class="site-pill">YouTube</span>
+        <span class="site-pill">TikTok</span>
+        <span class="site-pill">Instagram</span>
+        <span class="site-pill">Twitter / X</span>
+        <span class="site-pill">Reddit</span>
+        <span class="site-pill">Facebook</span>
+        <span class="site-pill">Vimeo</span>
+        <span class="site-pill">Twitch</span>
+        <span class="site-pill">Dailymotion</span>
+        <span class="site-pill">SoundCloud</span>
+        <span class="site-pill">Loom</span>
+        <span class="site-pill">Streamable</span>
+        <span class="site-pill">Pinterest</span>
+        <span class="site-pill">Tumblr</span>
+        <span class="site-pill">Threads</span>
+        <span class="site-pill">LinkedIn</span>
+        <span class="site-pill">Bilibili</span>
+        <span class="site-pill">Niconico</span>
+        <span class="site-pill">Bandcamp</span>
+        <span class="site-pill">Mixcloud</span>
+        <span class="site-pill">1000+ more</span>
+        <!-- Duplicate for seamless loop -->
+        <span class="site-pill">YouTube</span>
+        <span class="site-pill">TikTok</span>
+        <span class="site-pill">Instagram</span>
+        <span class="site-pill">Twitter / X</span>
+        <span class="site-pill">Reddit</span>
+        <span class="site-pill">Facebook</span>
+        <span class="site-pill">Vimeo</span>
+        <span class="site-pill">Twitch</span>
+        <span class="site-pill">Dailymotion</span>
+        <span class="site-pill">SoundCloud</span>
+        <span class="site-pill">Loom</span>
+        <span class="site-pill">Streamable</span>
+        <span class="site-pill">Pinterest</span>
+        <span class="site-pill">Tumblr</span>
+        <span class="site-pill">Threads</span>
+        <span class="site-pill">LinkedIn</span>
+        <span class="site-pill">Bilibili</span>
+        <span class="site-pill">Niconico</span>
+        <span class="site-pill">Bandcamp</span>
+        <span class="site-pill">Mixcloud</span>
+        <span class="site-pill">1000+ more</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Install ─── -->
+  <section class="install-section" id="install">
+    <div class="container--narrow">
+      <p class="section-label">Get Started</p>
+      <h2 class="section-title">Up in <em>60 seconds</em></h2>
+      <p class="section-desc">Two paths: run it locally with a shell script, or containerise with Docker.</p>
+
+      <div class="install-tabs" role="tablist">
+        <button class="install-tab active" role="tab" onclick="switchTab('local', this)">Local Setup</button>
+        <button class="install-tab" role="tab" onclick="switchTab('docker', this)">Docker</button>
+      </div>
+
+      <!-- Local -->
+      <div class="install-pane active" id="pane-local">
+        <div class="install-step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-label">Install dependencies</div>
+            <div class="step-desc">Make sure <code>yt-dlp</code>, <code>ffmpeg</code>, and Python 3.8+ are installed.</div>
+            <div class="code-block">
+              <button class="copy-btn" onclick="copyCode(this, 'deps')">Copy</button>
+              <pre id="code-deps"><span class="code-comment"># macOS</span>
+<span class="code-cmd">brew install yt-dlp ffmpeg</span>
+
+<span class="code-comment"># Ubuntu / Debian</span>
+<span class="code-cmd">sudo apt install ffmpeg && pip install yt-dlp</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-label">Clone and run</div>
+            <div class="step-desc">Clone the repo and launch with the included shell script.</div>
+            <div class="code-block">
+              <button class="copy-btn" onclick="copyCode(this, 'run')">Copy</button>
+              <pre id="code-run"><span class="code-cmd">git clone https://github.com/averygan/reclip.git</span>
+<span class="code-cmd">cd reclip</span>
+<span class="code-cmd">./reclip.sh</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-label">Open in browser</div>
+            <div class="step-desc">ReClip is now running at <strong>http://localhost:8899</strong>. Paste a URL and start downloading.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Docker -->
+      <div class="install-pane" id="pane-docker">
+        <div class="install-step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-label">Build the image</div>
+            <div class="code-block">
+              <button class="copy-btn" onclick="copyCode(this, 'docker-build')">Copy</button>
+              <pre id="code-docker-build"><span class="code-cmd">git clone https://github.com/averygan/reclip.git</span>
+<span class="code-cmd">cd reclip</span>
+<span class="code-cmd">docker build -t reclip .</span></pre>
+            </div>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-label">Run the container</div>
+            <div class="code-block">
+              <button class="copy-btn" onclick="copyCode(this, 'docker-run')">Copy</button>
+              <pre id="code-docker-run"><span class="code-cmd">docker run -p 8899:8899 reclip</span></pre>
+            </div>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-label">Open in browser</div>
+            <div class="step-desc">Visit <strong>http://localhost:8899</strong>. To persist downloads, mount a volume: <code style="font-size:var(--text-xs);color:var(--text);">-v $(pwd)/downloads:/app/downloads</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Stack ─── -->
+  <section class="stack-section">
+    <div class="container">
+      <p class="section-label">Tech Stack</p>
+      <h2 class="section-title">Minimal <em>by choice</em></h2>
+      <div class="stack-grid">
+        <div class="stack-item">
+          <div class="stack-role">Backend</div>
+          <div class="stack-name">Python + Flask</div>
+          <div class="stack-detail">~150 lines total</div>
+        </div>
+        <div class="stack-item">
+          <div class="stack-role">Frontend</div>
+          <div class="stack-name">Vanilla HTML/CSS/JS</div>
+          <div class="stack-detail">No frameworks, no build step</div>
+        </div>
+        <div class="stack-item">
+          <div class="stack-role">Download Engine</div>
+          <div class="stack-name">yt-dlp</div>
+          <div class="stack-detail">1000+ supported sites</div>
+        </div>
+        <div class="stack-item">
+          <div class="stack-role">Media Processing</div>
+          <div class="stack-name">ffmpeg</div>
+          <div class="stack-detail">MP4 merge + MP3 extraction</div>
+        </div>
+        <div class="stack-item">
+          <div class="stack-role">Deployment</div>
+          <div class="stack-name">Docker</div>
+          <div class="stack-detail">Included Dockerfile</div>
+        </div>
+        <div class="stack-item">
+          <div class="stack-role">Dependencies</div>
+          <div class="stack-name">Just 2</div>
+          <div class="stack-detail">Flask + yt-dlp</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── CTA ─── -->
+  <section class="cta-section">
+    <div class="container--narrow">
+      <div class="cta-inner">
+        <h2 class="cta-title">Start downloading, <em>now</em></h2>
+        <p class="cta-desc">Open source, MIT licensed, no sign-up required. Self-host in under a minute.</p>
+        <div class="cta-actions">
+          <a href="#install" class="btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Get Started
+          </a>
+          <a href="https://github.com/averygan/reclip" target="_blank" rel="noopener" class="btn-ghost">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.57v-2.01c-3.34.73-4.04-1.61-4.04-1.61-.54-1.38-1.33-1.75-1.33-1.75-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02.005 2.04.138 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.69.82.57C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Footer ─── -->
+  <footer>
+    <div class="container footer-inner">
+      <span class="footer-logo">Re<em>Clip</em></span>
+      <nav class="footer-links" aria-label="Footer links">
+        <a href="https://github.com/averygan/reclip" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/averygan/reclip/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+        <a href="https://github.com/yt-dlp/yt-dlp" target="_blank" rel="noopener">yt-dlp</a>
+      </nav>
+      <p class="footer-copy">Built by <a href="https://github.com/averygan" style="color:var(--accent);">averygan</a>. For personal use only — please respect copyright and platform terms of service.</p>
+    </div>
+  </footer>
+
+  <script>
+    /* ─── Theme toggle ─── */
+    (function() {
+      const t = document.querySelector('[data-theme-toggle]');
+      const r = document.documentElement;
+      let d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+      r.setAttribute('data-theme', d);
+      updateIcon(d);
+      t && t.addEventListener('click', () => {
+        d = d === 'dark' ? 'light' : 'dark';
+        r.setAttribute('data-theme', d);
+        updateIcon(d);
+      });
+      function updateIcon(theme) {
+        if (!t) return;
+        t.setAttribute('aria-label', 'Switch to ' + (theme === 'dark' ? 'light' : 'dark') + ' mode');
+        t.innerHTML = theme === 'dark'
+          ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+          : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      }
+    })();
+
+    /* ─── Install tabs ─── */
+    function switchTab(name, btn) {
+      document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.install-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('pane-' + name).classList.add('active');
+    }
+
+    /* ─── Copy code ─── */
+    function copyCode(btn, id) {
+      const pre = document.getElementById('code-' + id);
+      const text = pre ? pre.textContent.trim() : '';
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      });
+    }
+
+    /* ─── Scroll-in animation ─── */
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.style.opacity = '1';
+          e.target.style.transform = 'translateY(0)';
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+
+    document.querySelectorAll('.feature-card, .stack-item, .install-step').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(16px)';
+      el.style.transition = 'opacity 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1)';
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>
