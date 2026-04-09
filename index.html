@@ -346,6 +346,42 @@
       .controls { flex-wrap: wrap; }
       .fetch-btn { width: 100%; }
     }
+
+    /* ── Cookie panel ── */
+    #cookie-banner {
+      background: color-mix(in oklab, var(--success) 8%, var(--bg));
+      border-bottom: 1px solid color-mix(in oklab, var(--success) 20%, var(--card-border));
+      padding: 10px 20px;
+      display: none;
+    }
+    #cookie-banner.visible { display: block; }
+    .cookie-inner {
+      max-width: 680px; margin: 0 auto;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .cookie-label { font-size: 0.7rem; color: var(--success); text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
+    .cookie-status { font-size: 0.7rem; color: var(--muted); }
+    .cookie-status.active { color: var(--success); }
+    .cookie-upload-btn {
+      padding: 6px 14px; border: 1.5px solid var(--card-border); border-radius: 8px;
+      font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--fg);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      cursor: pointer; background: var(--card); transition: all 0.2s;
+    }
+    .cookie-upload-btn:hover { border-color: var(--success); color: var(--success); }
+    .cookie-del-btn {
+      padding: 6px 14px; border: none; border-radius: 8px;
+      background: color-mix(in oklab, var(--error) 12%, var(--card));
+      color: var(--error);
+      font-family: 'DM Mono', monospace; font-size: 0.7rem;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .cookie-del-btn:hover { background: color-mix(in oklab, var(--error) 20%, var(--card)); }
+    .cookie-hint { font-size: 0.65rem; color: var(--muted); width: 100%; line-height: 1.5; }
+    .cookie-hint a { color: var(--accent); text-decoration: none; }
+    .cookie-hint a:hover { text-decoration: underline; }
+    #cookie-file-input { display: none; }
   </style>
 </head>
 <body>
@@ -359,6 +395,7 @@
           <span id="status-text">–</span>
         </span>
         <button class="nav-link" onclick="toggleSetup()" style="cursor:pointer;border:none;background:none;font-family:inherit;">⚙ Setup</button>
+        <button class="nav-link" onclick="toggleCookies()" style="cursor:pointer;border:none;background:none;font-family:inherit;" id="cookie-nav-btn">🍪 Cookies</button>
         <a href="https://github.com/shamlokto/reclip-backend" target="_blank" rel="noopener" class="nav-link">GitHub</a>
         <button class="theme-btn" data-theme-toggle aria-label="Toggle theme">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -376,6 +413,23 @@
       <p class="setup-hint">
         Deploy the backend to Railway, then paste the URL above.
         <a href="https://github.com/shamlokto/reclip-backend" target="_blank" rel="noopener">View setup instructions →</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Cookie banner -->
+  <div id="cookie-banner">
+    <div class="cookie-inner">
+      <span class="cookie-label">YouTube Cookies</span>
+      <span class="cookie-status" id="cookie-status-text">not set</span>
+      <button class="cookie-upload-btn" onclick="document.getElementById('cookie-file-input').click()">Upload cookies.txt</button>
+      <button class="cookie-del-btn" id="cookie-del-btn" onclick="deleteCookies()" style="display:none">Remove</button>
+      <input type="file" id="cookie-file-input" accept=".txt" onchange="uploadCookies(this)">
+      <p class="cookie-hint">
+        Export your YouTube cookies as <strong>cookies.txt</strong> (Netscape format) using the
+        <a href="https://addons.mozilla.org/firefox/addon/cookies-txt/" target="_blank" rel="noopener">cookies.txt Firefox extension</a>
+        or <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener">Get cookies.txt LOCALLY (Chrome)</a>
+        while logged into YouTube, then upload the file here. Cookies are stored only on the HF Space server.
       </p>
     </div>
   </div>
@@ -697,6 +751,69 @@
       }
       if (btn) { btn.disabled = false; btn.textContent = 'Download All'; }
     }
+
+    // ── Cookie management ──
+    async function refreshCookieStatus() {
+      if (!BACKEND_URL) return;
+      try {
+        const r = await fetch(BACKEND_URL + '/api/cookies/status');
+        const d = await r.json();
+        const txt = document.getElementById('cookie-status-text');
+        const del = document.getElementById('cookie-del-btn');
+        const btn = document.getElementById('cookie-nav-btn');
+        if (d.active) {
+          txt.textContent = '✓ active (' + Math.round(d.bytes / 1024) + ' KB)';
+          txt.className = 'cookie-status active';
+          del.style.display = '';
+          btn.style.color = 'var(--success)';
+        } else {
+          txt.textContent = 'not set — YouTube may fail';
+          txt.className = 'cookie-status';
+          del.style.display = 'none';
+          btn.style.color = '';
+        }
+      } catch {}
+    }
+
+    function toggleCookies() {
+      const b = document.getElementById('cookie-banner');
+      const isVis = b.classList.contains('visible');
+      document.getElementById('setup-banner').classList.remove('visible');
+      b.classList.toggle('visible', !isVis);
+      if (!isVis) refreshCookieStatus();
+    }
+
+    async function uploadCookies(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      const txt = document.getElementById('cookie-status-text');
+      txt.textContent = 'uploading…';
+      try {
+        const r = await fetch(BACKEND_URL + '/api/cookies', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.ok) {
+          await refreshCookieStatus();
+        } else {
+          txt.textContent = 'upload failed: ' + (d.error || 'unknown');
+        }
+      } catch(e) {
+        txt.textContent = 'error: ' + e.message;
+      }
+      input.value = '';
+    }
+
+    async function deleteCookies() {
+      try {
+        await fetch(BACKEND_URL + '/api/cookies', { method: 'DELETE' });
+        await refreshCookieStatus();
+      } catch {}
+    }
+
+    // Check cookie status on load
+    setTimeout(refreshCookieStatus, 1500);
+
   </script>
 </body>
 </html>
