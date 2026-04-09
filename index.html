@@ -444,8 +444,8 @@
     // ── Backend config ──
     // Use a JS variable (no localStorage — blocked in some sandboxes)
     // But for a real GitHub Pages deployment, sessionStorage works fine
-    let BACKEND_URL = '';
-    try { BACKEND_URL = sessionStorage.getItem('reclip_backend') || ''; } catch(e) {}
+    let BACKEND_URL = 'https://shamlokto-reclip-backend.hf.space';
+    try { BACKEND_URL = sessionStorage.getItem('reclip_backend') || 'https://shamlokto-reclip-backend.hf.space'; } catch(e) {}
 
     function saveBackend() {
       const val = document.getElementById('backend-input').value.trim().replace(/\/$/, '');
